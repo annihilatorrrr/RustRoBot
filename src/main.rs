@@ -16,10 +16,7 @@ async fn main() {
     let mut dispatcher = &mut Dispatcher::new(&bot);
     dispatcher.add_handler(CommandHandler::new("start", start));
     dispatcher.add_handler_to_group(
-        MessageHandler::new(
-            echo,
-            message::Text::filter().or(message::Caption::filter()),
-        ),
+        MessageHandler::new(echo, message::Text::filter().or(message::Caption::filter())),
         1,
     );
     let mut updater = Updater::new(&bot, dispatcher);
@@ -35,11 +32,11 @@ async fn start(bot: Bot, ctx: Context) -> Result<GroupIteration> {
         "Hey! I am an echo bot built using [Ferrisgram](https://github.com/ferrisgram/ferrisgram).
 I will repeat your messages.",
     )
-        .parse_mode("markdown".to_string())
-        .link_preview_options(link_preview_options)
-        // You must use this send() method in order to send the request to the API
-        .send()
-        .await?;
+    .parse_mode("markdown".to_string())
+    .link_preview_options(link_preview_options)
+    // You must use this send() method in order to send the request to the API
+    .send()
+    .await?;
     Ok(GroupIteration::EndGroups)
 }
 
