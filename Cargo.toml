@@ -1,0 +1,9 @@
+[dependencies]
+ferrisgram = "0.1.9"
+tokio = "1.37.0"
+
+[package]
+name = "rustrobot"
+version = "0.0.1"
+include = ["/src"]
+edition = "2021"

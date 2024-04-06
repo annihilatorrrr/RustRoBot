@@ -5,5 +5,5 @@ RUN mkdir src && echo "fn main() {}" > src/main.rs && cargo build --release && r
 COPY . .
 RUN cargo build --release
 FROM alpine:latest
-COPY --from=builder /usr/src/app/target/release/RustRoBot /usr/local/bin/RustRoBot
-CMD ["/usr/local/bin/RustRoBot"]
+COPY --from=builder /usr/src/app/target/release/rustrobot /usr/local/bin/rustrobot
+CMD ["/usr/local/bin/rustrobot"]
