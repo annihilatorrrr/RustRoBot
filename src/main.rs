@@ -4,6 +4,9 @@ use ferrisgram::ext::handlers::{CommandHandler, MessageHandler};
 use ferrisgram::ext::{Context, Dispatcher, Updater};
 use ferrisgram::types::LinkPreviewOptions;
 use ferrisgram::Bot;
+use std::time::Duration;
+use tokio::{time, task};
+use reqwest::Client;
 
 #[allow(unused)]
 #[tokio::main]
@@ -20,7 +23,17 @@ async fn main() {
         1,
     );
     let mut updater = Updater::new(&bot, dispatcher);
+    task::spawn(ping_link());
     updater.start_polling(false).await;
+}
+
+async fn ping_link() {
+    let url = "https://rustrobot.1.sg-1.fl0.io";
+    let client = Client::new();
+    loop {
+        let _ = client.get(url).send().await;
+        time::sleep(Duration::from_secs(23 * 3600)).await;
+    }
 }
 
 async fn start(bot: Bot, ctx: Context) -> Result<GroupIteration> {
@@ -32,11 +45,11 @@ async fn start(bot: Bot, ctx: Context) -> Result<GroupIteration> {
         "Hey! I am an echo bot built using [Ferrisgram](https://github.com/ferrisgram/ferrisgram).
 I will repeat your messages.",
     )
-    .parse_mode("markdown".to_string())
-    .link_preview_options(link_preview_options)
-    // You must use this send() method in order to send the request to the API
-    .send()
-    .await?;
+        .parse_mode("markdown".to_string())
+        .link_preview_options(link_preview_options)
+        // You must use this send() method in order to send the request to the API
+        .send()
+        .await?;
     Ok(GroupIteration::EndGroups)
 }
 
