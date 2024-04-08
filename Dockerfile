@@ -1,7 +1,9 @@
 FROM rust:latest AS builder
-WORKDIR /usr/src/app
+WORKDIR /RustRoBot
+RUN apk update && apk upgrade --available && sync && apk add --no-cache --virtual .build-deps
 COPY . .
 RUN cargo build --release
 FROM alpine:latest
-COPY --from=builder /usr/src/app/target/release/rustrobot /usr/local/bin/rustrobot
-CMD ["/usr/local/bin/rustrobot"]
+RUN apk update && apk upgrade --available && sync
+COPY --from=builder /RustRoBot/target/release/rustrobot /RustRoBot
+ENTRYPOINT ["/RustRoBot"]
