@@ -9,8 +9,6 @@ lto = true
 opt-level = "z"
 incremental = true
 codegen-units = 1
-target-cpu = "native"
-link-arg = "-s"
 
 [package]
 name = "rustrobot"
