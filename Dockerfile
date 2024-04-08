@@ -6,5 +6,5 @@ ENV RUSTFLAGS="-C target-cpu=native -C opt-level=3 -C link-arg=-s"
 RUN cargo build --release
 FROM alpine:3.19.1
 RUN apk update && apk add --no-cache --virtual .build-deps openssl-dev musl-dev
-COPY --from=builder /RustRoBot/target/release/rustrobot .
-ENTRYPOINT ["/rustrobot"]
+COPY --from=builder /RustRoBot/target/release/rustrobot ./
+ENTRYPOINT ["./rustrobot"]
