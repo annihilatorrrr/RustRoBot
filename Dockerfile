@@ -1,4 +1,4 @@
-FROM rust:1.78.0-slim-bookworm as builder
+FROM rust:1.81.0-slim-bookworm as builder
 WORKDIR /RustRoBot
 RUN apt update && apt upgrade -y && apt install build-essential libssl-dev libc-dev pkg-config -y && rm -rf /var/lib/apt/lists/*
 COPY . .
