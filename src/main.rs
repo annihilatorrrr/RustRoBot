@@ -4,14 +4,11 @@ use ferrisgram::ext::handlers::{CommandHandler, MessageHandler};
 use ferrisgram::ext::{Context, Dispatcher, Updater};
 use ferrisgram::types::LinkPreviewOptions;
 use ferrisgram::Bot;
-use reqwest::Client;
-use std::time::Duration;
-use tokio::{task, time};
 
 #[allow(unused)]
 #[tokio::main]
 async fn main() {
-    let token = "1883187841:AAHL9IaKbfScpHRFyEDfqeNi3xKz5y9rMzY";
+    let token = "5257761853:AAGz4MrYV692i_kWlEx3INwWxM6qSYTHNF0";
     let bot = match Bot::new(&token, None).await {
         Ok(bot) => bot,
         Err(error) => panic!("failed to create bot: {}", error),
@@ -23,17 +20,8 @@ async fn main() {
         1,
     );
     let mut updater = Updater::new(&bot, dispatcher);
-    task::spawn(ping_link());
+    println!("Started!");
     updater.start_polling(false).await;
-}
-
-async fn ping_link() {
-    let url = "https://rustrobot.1.sg-1.fl0.io";
-    let client = Client::new();
-    loop {
-        let _ = client.get(url).send().await;
-        time::sleep(Duration::from_secs(23 * 3600)).await;
-    }
 }
 
 async fn start(bot: Bot, ctx: Context) -> Result<GroupIteration> {
