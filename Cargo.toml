@@ -1,12 +1,11 @@
 [dependencies]
-ferrisgram = "0.2.0"
+ferrisgram = "0.2.1"
 tokio = { version = "1.37.0", features = ["full"] }
 
 [profile.release]
 lto = true
 opt-level = "z"
 incremental = true
-codegen-units = 1
 
 [package]
 name = "rustrobot"

@@ -8,7 +8,7 @@ use ferrisgram::Bot;
 #[allow(unused)]
 #[tokio::main]
 async fn main() {
-    let token = "5257761853:AAGz4MrYV692i_kWlEx3INwWxM6qSYTHNF0";
+    let token = "TOKEN";
     let bot = match Bot::new(&token, None).await {
         Ok(bot) => bot,
         Err(error) => panic!("failed to create bot: {}", error),
