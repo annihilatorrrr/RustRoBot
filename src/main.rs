@@ -4,11 +4,15 @@ use ferrisgram::ext::handlers::{CommandHandler, MessageHandler};
 use ferrisgram::ext::{Context, Dispatcher, Updater};
 use ferrisgram::types::LinkPreviewOptions;
 use ferrisgram::Bot;
+use std::env;
 
 #[allow(unused)]
 #[tokio::main]
 async fn main() {
-    let token = "5257761853:AAE7UWm1rqFlDfy-nyObxUOS9Dmtg52fUEM";
+    let token = match env::var("TOKEN") {
+        Ok(s) => s,
+        Err(err) => panic!("failed to get bot token: {}", err),
+    };
     let bot = match Bot::new(&token, None).await {
         Ok(bot) => bot,
         Err(error) => panic!("failed to create bot: {}", error),
