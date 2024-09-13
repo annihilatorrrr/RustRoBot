@@ -1,12 +1,11 @@
 [dependencies]
-ferrisgram = { git = "https://github.com/ferrisgram/ferrisgram.git", rev = "1864429373bbc29c5e42e1b9ea02fe75e972003b"}
+ferrisgram = "0.2.1"
 tokio = { version = "1.37.0", features = ["full"] }
 
 [profile.release]
 lto = true
 opt-level = "z"
 incremental = true
-codegen-units = 1
 
 [package]
 name = "rustrobot"
