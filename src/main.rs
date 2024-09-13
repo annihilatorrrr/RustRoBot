@@ -73,7 +73,6 @@ async fn sysnchk(b: Bot, ctx: Context) -> Result<GroupIteration> {
 
 async fn pingh(b: Bot, ctx: Context) -> Result<GroupIteration> {
     let msg = ctx.effective_message.unwrap();
-    task::sleep(Duration::from_secs(10)).await;
     let startt = std::time::Instant::now();
     let emsg = msg.reply(&b, "Pinging ...").send().await?;
     let endt = std::time::Instant::now();
