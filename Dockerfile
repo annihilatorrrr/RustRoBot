@@ -1,6 +1,9 @@
-FROM rust:1.81.0-slim-bookworm as builder
+FROM rust:1.81.0-alpine3.20 as builder
 WORKDIR /RustRoBot
-RUN apt update && apt upgrade -y && apt install build-essential libssl-dev libc-dev pkg-config -y && rm -rf /var/lib/apt/lists/*
+RUN apk update && apk upgrade --available && sync && apk add --no-cache --virtual .build-deps musl-dev openssl-dev build-base pkgconfig
 COPY . .
-ENV RUSTFLAGS="-C opt-level=3 -C link-arg=-s"
-ENTRYPOINT cargo run --package rustrobot --bin rustrobot --color=never
+RUN cargo build --release
+FROM alpine:3.20
+RUN apk update && apk upgrade --available && sync
+COPY --from=builder /RustRoBot/target/release/rustrobot /rustrobot
+ENTRYPOINT ["/rustrobot"]
