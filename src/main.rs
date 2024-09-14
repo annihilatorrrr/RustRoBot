@@ -110,7 +110,7 @@ async fn pingh(b: Bot, ctx: Context) -> Result<GroupIteration> {
 async fn getid(b: Bot, ctx: Context) -> Result<GroupIteration> {
     let msg = ctx.effective_message.unwrap();
     let user = ctx.effective_user.unwrap();
-    msg.reply(&b, &format!("<b>Chat ID:</b> <code>{}</code>\n<b>Message ID:</b> <code>{}</code>\n<b>My ID:</b> <code>{}</code>\n<b>You ID:</b> <code>{}</code>", msg.chat.id, msg.message_id, b.user.id, user.id))
+    msg.reply(&b, &format!("<b>Chat ID:</b> <code>{}</code>\n<b>Message ID:</b> <code>{}</code>\n<b>My ID:</b> <code>{}</code>\n<b>Your ID:</b> <code>{}</code>", msg.chat.id, msg.message_id, b.user.id, user.id))
         .parse_mode("html".to_string())
         .send()
         .await?;
