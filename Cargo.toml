@@ -5,8 +5,10 @@ tokio = { version = "1.40.0", features = ["full"] }
 
 [profile.release]
 lto = true
-opt-level = "z"
+opt-level = "s"
 incremental = true
+strip = true
+panic = "unwind"
 
 [package]
 name = "rustrobot"
