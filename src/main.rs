@@ -6,6 +6,7 @@ use ferrisgram::ext::{Context, Dispatcher, Updater};
 use ferrisgram::types::LinkPreviewOptions;
 use ferrisgram::Bot;
 use std::env;
+use std::process::Command;
 use std::time::Duration;
 
 #[allow(unused)]
@@ -13,7 +14,7 @@ use std::time::Duration;
 async fn main() {
     let token = match env::var("TOKEN") {
         Ok(s) => s,
-        Err(_) => "YOUR TOKEN IF HARDCODE NEEDED.".to_string(),
+        Err(_) => "5458077211:AAGdlige2lrKpyu1YXWCR5o3cqvK0gVh6uA".to_string(),
     };
     let bot = match Bot::new(&token, None).await {
         Ok(bot) => bot,
@@ -22,13 +23,34 @@ async fn main() {
     let mut dispatcher = &mut Dispatcher::new(&bot);
     dispatcher.add_handler(CommandHandler::new("start", start));
     dispatcher.add_handler(CommandHandler::new("ping", pingh));
+    dispatcher.add_handler(CommandHandler::new("id", getid));
     dispatcher.add_handler(CommandHandler::new("sleep", sysnchk));
-    dispatcher.add_handler_to_group(
-        MessageHandler::new(echo, message::Text::filter().or(message::Caption::filter())),
-        1,
-    );
+    dispatcher.add_handler_to_group(MessageHandler::new(echo, message::All::filter()), 1);
     let mut updater = Updater::new(&bot, dispatcher);
     updater.allowed_updates = Some(vec!["message"]);
+    tokio::spawn(async move {
+        task::sleep(Duration::from_secs(21600)).await;
+        let self_executable = match env::current_exe() {
+            Ok(path) => path,
+            Err(err) => {
+                eprintln!("Failed to get current executable: {}", err);
+                return;
+            }
+        };
+        let args: Vec<String> = env::args().collect();
+        let status = Command::new(self_executable)
+            .args(&args[1..])
+            .envs(env::vars())
+            .status();
+        match status {
+            Ok(status) => {
+                if !status.success() {
+                    eprintln!("Process exited with non-zero status: {:?}", status);
+                }
+            }
+            Err(err) => eprintln!("Failed to exec the process: {}", err),
+        }
+    });
     println!("Started!");
     updater.start_polling(false).await;
     println!("Bye!");
@@ -80,6 +102,16 @@ async fn pingh(b: Bot, ctx: Context) -> Result<GroupIteration> {
     b.edit_message_text(format!("Pong!\n{:?}!", elapsed_time))
         .chat_id(msg.chat.id)
         .message_id(emsg.message_id)
+        .send()
+        .await?;
+    Ok(GroupIteration::EndGroups)
+}
+
+async fn getid(b: Bot, ctx: Context) -> Result<GroupIteration> {
+    let msg = ctx.effective_message.unwrap();
+    let user = ctx.effective_user.unwrap();
+    msg.reply(&b, &format!("<b>Chat ID:</b> <code>{}</code>\n<b>Message ID:</b> <code>{}</code>\n<b>My ID:</b> <code>{}</code>\n<b>You ID:</b> <code>{}</code>", msg.chat.id, msg.message_id, b.user.id, user.id))
+        .parse_mode("html".to_string())
         .send()
         .await?;
     Ok(GroupIteration::EndGroups)
