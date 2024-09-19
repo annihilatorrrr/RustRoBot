@@ -9,18 +9,17 @@ use std::env;
 use std::process::Command;
 use std::time::Duration;
 
-#[allow(unused)]
 #[tokio::main]
 async fn main() {
     let token = match env::var("TOKEN") {
         Ok(s) => s,
-        Err(_) => "5458077211:AAGdlige2lrKpyu1YXWCR5o3cqvK0gVh6uA".to_string(),
+        Err(_) => "TOKEN".to_string(),
     };
     let bot = match Bot::new(&token, None).await {
         Ok(bot) => bot,
         Err(error) => panic!("failed to create bot: {}", error),
     };
-    let mut dispatcher = &mut Dispatcher::new(&bot);
+    let dispatcher = &mut Dispatcher::new(&bot);
     dispatcher.add_handler(CommandHandler::new("start", start));
     dispatcher.add_handler(CommandHandler::new("ping", pingh));
     dispatcher.add_handler(CommandHandler::new("id", getid));
@@ -52,7 +51,7 @@ async fn main() {
         }
     });
     println!("Started!");
-    updater.start_polling(false).await;
+    updater.start_polling(false).await.expect("OK");
     println!("Bye!");
 }
 
@@ -110,7 +109,26 @@ async fn pingh(b: Bot, ctx: Context) -> Result<GroupIteration> {
 async fn getid(b: Bot, ctx: Context) -> Result<GroupIteration> {
     let msg = ctx.effective_message.unwrap();
     let user = ctx.effective_user.unwrap();
-    msg.reply(&b, &format!("<b>Chat ID:</b> <code>{}</code>\n<b>Message ID:</b> <code>{}</code>\n<b>My ID:</b> <code>{}</code>\n<b>Your ID:</b> <code>{}</code>", msg.chat.id, msg.message_id, b.user.id, user.id))
+    let mut sendtxt = format!("<b>Chat ID:</b> <code>{}</code>\n<b>Message ID:</b> <code>{}</code>\n<b>My ID:</b> <code>{}</code>\n<b>Your ID:</b> <code>{}</code>\n", msg.chat.id, msg.message_id, b.user.id, user.id);
+    if let Some(rmsg) = msg.reply_to_message.clone() {
+        sendtxt.push_str(&format!(
+            "<b>Replied Message ID:</b> <code>{}</code>\n",
+            rmsg.message_id
+        ));
+        if let Some(rusr) = rmsg.from.clone() {
+            sendtxt.push_str(&format!(
+                "<b>Replied User ID:</b> <code>{}</code>\n",
+                rusr.id
+            ));
+        }
+        if let Some(rusc) = rmsg.sender_chat.clone() {
+            sendtxt.push_str(&format!(
+                "<b>Replied Chat ID:</b> <code>{}</code>\n",
+                rusc.id
+            ));
+        }
+    }
+    msg.reply(&b, &sendtxt)
         .parse_mode("html".to_string())
         .send()
         .await?;
