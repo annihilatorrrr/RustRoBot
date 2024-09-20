@@ -42,6 +42,8 @@ async fn main() {
             Ok(status) => {
                 if !status.success() {
                     eprintln!("Process exited with non-zero status: {:?}", status);
+                } else {
+                    eprintln!("Process exited with non-zero status: {:?}", status);
                 }
             }
             Err(err) => eprintln!("Failed to exec the process: {}", err),
