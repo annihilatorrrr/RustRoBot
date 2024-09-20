@@ -11,10 +11,7 @@ use std::time::Duration;
 
 #[tokio::main]
 async fn main() {
-    let token = match env::var("TOKEN") {
-        Ok(s) => s,
-        Err(_) => "TOMKEN".to_string(),
-    };
+    let token = env::var("TOKEN").unwrap_or("TOMKEN".to_string());
     let bot = match Bot::new(&token, None).await {
         Ok(bot) => bot,
         Err(error) => panic!("failed to create bot: {}", error),
