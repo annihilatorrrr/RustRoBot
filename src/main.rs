@@ -3,7 +3,7 @@ use ferrisgram::error::{GroupIteration, Result};
 use ferrisgram::ext::filters::message;
 use ferrisgram::ext::handlers::{CommandHandler, MessageHandler};
 use ferrisgram::ext::{Context, Dispatcher, Updater};
-use ferrisgram::types::LinkPreviewOptions;
+use ferrisgram::types::{LinkPreviewOptions, MessageOrigin};
 use ferrisgram::Bot;
 use std::env;
 use std::process::Command;
@@ -13,7 +13,7 @@ use std::time::Duration;
 async fn main() {
     let token = match env::var("TOKEN") {
         Ok(s) => s,
-        Err(_) => "TOKEN".to_string(),
+        Err(_) => "TOKEN HARDCODE".to_string(),
     };
     let bot = match Bot::new(&token, None).await {
         Ok(bot) => bot,
@@ -126,6 +126,29 @@ async fn getid(b: Bot, ctx: Context) -> Result<GroupIteration> {
                 "<b>Replied Chat ID:</b> <code>{}</code>\n",
                 rusc.id
             ));
+        }
+        if let Some(forward_origin) = rmsg.forward_origin.clone() {
+            match forward_origin {
+                MessageOrigin::MessageOriginUser(user_origin) => {
+                    sendtxt.push_str(&format!(
+                        "<b>Forwarded From User ID:</b> <code>{}</code>\n",
+                        user_origin.sender_user.id,
+                    ));
+                },
+                MessageOrigin::MessageOriginChat(chat_origin) => {
+                    sendtxt.push_str(&format!(
+                        "<b>Forwarded From Chat ID:</b> <code>{}</code>\n",
+                        chat_origin.sender_chat.id,
+                    ));
+                },
+                MessageOrigin::MessageOriginChannel(channel_origin) => {
+                    sendtxt.push_str(&format!(
+                        "<b>Forwarded Message ID:</b> <code>{}</code>\n<b>Forwarded From Channel ID:</b> <code>{}</code>\n",
+                        channel_origin.message_id, channel_origin.chat.id,
+                    ));
+                }
+                _ => {}
+            }
         }
     }
     msg.reply(&b, &sendtxt)
