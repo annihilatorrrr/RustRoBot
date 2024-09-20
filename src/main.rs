@@ -39,13 +39,7 @@ async fn main() {
             .envs(env::vars())
             .status();
         match status {
-            Ok(status) => {
-                if !status.success() {
-                    eprintln!("Process exited with non-zero status: {:?}", status);
-                } else {
-                    eprintln!("Process exited with non-zero status: {:?}", status);
-                }
-            }
+            Ok(status) => eprintln!("Process exited with non-zero status: {:?}", status),
             Err(err) => eprintln!("Failed to exec the process: {}", err),
         }
     });
