@@ -107,6 +107,7 @@ async fn pingh(b: Bot, ctx: Context) -> Result<GroupIteration> {
 }
 
 async fn getid(b: Bot, ctx: Context) -> Result<GroupIteration> {
+    let args = ctx.args()[1..];
     let msg = ctx.effective_message.unwrap();
     let user = ctx.effective_user.unwrap();
     let mut sendtxt = format!("<b>Chat ID:</b> <code>{}</code>\n<b>Message ID:</b> <code>{}</code>\n<b>My ID:</b> <code>{}</code>\n<b>Your ID:</b> <code>{}</code>\n", msg.chat.id, msg.message_id, b.user.id, user.id);
@@ -150,6 +151,12 @@ async fn getid(b: Bot, ctx: Context) -> Result<GroupIteration> {
                 _ => {}
             }
         }
+    }
+    if !args.is_empty() {
+        sendtxt.push_str(&format!(
+            "<b>Args Provided:</b> <code>{}</code>\n",
+            args.join(" "),
+        ));
     }
     msg.reply(&b, &sendtxt)
         .parse_mode("html".to_string())
