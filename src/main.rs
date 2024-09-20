@@ -13,7 +13,7 @@ use std::time::Duration;
 async fn main() {
     let token = match env::var("TOKEN") {
         Ok(s) => s,
-        Err(_) => "TOKEN HARDCODE".to_string(),
+        Err(_) => "TOMKEN".to_string(),
     };
     let bot = match Bot::new(&token, None).await {
         Ok(bot) => bot,
@@ -107,7 +107,7 @@ async fn pingh(b: Bot, ctx: Context) -> Result<GroupIteration> {
 }
 
 async fn getid(b: Bot, ctx: Context) -> Result<GroupIteration> {
-    let args = ctx.args()[1..];
+    let argsctx = ctx.clone();
     let msg = ctx.effective_message.unwrap();
     let user = ctx.effective_user.unwrap();
     let mut sendtxt = format!("<b>Chat ID:</b> <code>{}</code>\n<b>Message ID:</b> <code>{}</code>\n<b>My ID:</b> <code>{}</code>\n<b>Your ID:</b> <code>{}</code>\n", msg.chat.id, msg.message_id, b.user.id, user.id);
@@ -152,11 +152,17 @@ async fn getid(b: Bot, ctx: Context) -> Result<GroupIteration> {
             }
         }
     }
+    let args = &argsctx.args()[1..];
     if !args.is_empty() {
-        sendtxt.push_str(&format!(
-            "<b>Args Provided:</b> <code>{}</code>\n",
-            args.join(" "),
-        ));
+        let chatid = args[0].parse::<i64>().unwrap_or(0);
+        if chatid != 0 {
+            if let Ok(chat) = b.get_chat(chatid).send().await {
+                sendtxt.push_str(&format!(
+                    "<b>Chat Name:</b> <code>{}</code>\n<b>Chat Username:</b> <code>@{}</code>\n",
+                    chat.title.unwrap_or(chat.first_name.unwrap_or("None".to_string())), chat.username.unwrap_or("None".to_string()),
+                ));
+            }
+        }
     }
     msg.reply(&b, &sendtxt)
         .parse_mode("html".to_string())
