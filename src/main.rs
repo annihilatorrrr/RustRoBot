@@ -151,7 +151,7 @@ async fn getid(b: Bot, ctx: Context) -> Result<GroupIteration> {
         if chatid != 0 {
             if let Ok(chat) = b.get_chat(chatid).send().await {
                 sendtxt.push_str(&format!(
-                    "<b>Chat Name:</b> <code>{}</code>\n<b>Chat Username:</b> <code>@{}</code>\n",
+                    "<b>Chat Name:</b> <code>{}</code>\n<b>Chat Username:</b> @{}\n",
                     chat.title
                         .unwrap_or(chat.first_name.unwrap_or("None".to_string())),
                     chat.username.unwrap_or("None".to_string()),
