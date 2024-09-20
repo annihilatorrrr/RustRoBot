@@ -11,7 +11,7 @@ use std::time::Duration;
 
 #[tokio::main]
 async fn main() {
-    let token = env::var("TOKEN").unwrap_or("TOMKEN".to_string());
+    let token = env::var("TOKEN").unwrap_or_else(|_| "TOMKEN".to_string());
     let bot = match Bot::new(&token, None).await {
         Ok(bot) => bot,
         Err(error) => panic!("failed to create bot: {}", error),
@@ -151,7 +151,7 @@ async fn getid(b: Bot, ctx: Context) -> Result<GroupIteration> {
     }
     let args = &argsctx.args()[1..];
     if !args.is_empty() {
-        let chatid = args[0].parse::<i64>().unwrap_or(0);
+        let chatid = args[0].parse::<i64>().unwrap_or_else(|_| 0);
         if chatid != 0 {
             if let Ok(chat) = b.get_chat(chatid).send().await {
                 sendtxt.push_str(&format!(
