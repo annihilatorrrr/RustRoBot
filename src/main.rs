@@ -134,13 +134,13 @@ async fn getid(b: Bot, ctx: Context) -> Result<GroupIteration> {
                         "<b>Forwarded From User ID:</b> <code>{}</code>\n",
                         user_origin.sender_user.id,
                     ));
-                },
+                }
                 MessageOrigin::MessageOriginChat(chat_origin) => {
                     sendtxt.push_str(&format!(
                         "<b>Forwarded From Chat ID:</b> <code>{}</code>\n",
                         chat_origin.sender_chat.id,
                     ));
-                },
+                }
                 MessageOrigin::MessageOriginChannel(channel_origin) => {
                     sendtxt.push_str(&format!(
                         "<b>Forwarded Message ID:</b> <code>{}</code>\n<b>Forwarded From Channel ID:</b> <code>{}</code>\n",
