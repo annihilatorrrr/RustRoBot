@@ -3,7 +3,7 @@ use ferrisgram::error::{GroupIteration, Result};
 use ferrisgram::ext::filters::message;
 use ferrisgram::ext::handlers::{CommandHandler, MessageHandler};
 use ferrisgram::ext::{Context, Dispatcher, Updater};
-use ferrisgram::types::LinkPreviewOptions;
+use ferrisgram::types::{LinkPreviewOptions, MessageOrigin};
 use ferrisgram::Bot;
 use std::env;
 use std::process::Command;
@@ -11,10 +11,7 @@ use std::time::Duration;
 
 #[tokio::main]
 async fn main() {
-    let token = match env::var("TOKEN") {
-        Ok(s) => s,
-        Err(_) => "TOKEN".to_string(),
-    };
+    let token = env::var("TOKEN").unwrap_or_else(|_| "TOMKEN".to_string());
     let bot = match Bot::new(&token, None).await {
         Ok(bot) => bot,
         Err(error) => panic!("failed to create bot: {}", error),
@@ -42,16 +39,12 @@ async fn main() {
             .envs(env::vars())
             .status();
         match status {
-            Ok(status) => {
-                if !status.success() {
-                    eprintln!("Process exited with non-zero status: {:?}", status);
-                }
-            }
+            Ok(status) => eprintln!("Process exited with non-zero status: {:?}", status),
             Err(err) => eprintln!("Failed to exec the process: {}", err),
         }
     });
     println!("Started!");
-    updater.start_polling(false).await.expect("OK");
+    updater.start_polling(false).await.ok();
     println!("Bye!");
 }
 
@@ -107,6 +100,7 @@ async fn pingh(b: Bot, ctx: Context) -> Result<GroupIteration> {
 }
 
 async fn getid(b: Bot, ctx: Context) -> Result<GroupIteration> {
+    let argsctx = ctx.clone();
     let msg = ctx.effective_message.unwrap();
     let user = ctx.effective_user.unwrap();
     let mut sendtxt = format!("<b>Chat ID:</b> <code>{}</code>\n<b>Message ID:</b> <code>{}</code>\n<b>My ID:</b> <code>{}</code>\n<b>Your ID:</b> <code>{}</code>\n", msg.chat.id, msg.message_id, b.user.id, user.id);
@@ -126,6 +120,43 @@ async fn getid(b: Bot, ctx: Context) -> Result<GroupIteration> {
                 "<b>Replied Chat ID:</b> <code>{}</code>\n",
                 rusc.id
             ));
+        }
+        if let Some(forward_origin) = rmsg.forward_origin.clone() {
+            match forward_origin {
+                MessageOrigin::MessageOriginUser(user_origin) => {
+                    sendtxt.push_str(&format!(
+                        "<b>Forwarded From User ID:</b> <code>{}</code>\n",
+                        user_origin.sender_user.id,
+                    ));
+                }
+                MessageOrigin::MessageOriginChat(chat_origin) => {
+                    sendtxt.push_str(&format!(
+                        "<b>Forwarded From Chat ID:</b> <code>{}</code>\n",
+                        chat_origin.sender_chat.id,
+                    ));
+                }
+                MessageOrigin::MessageOriginChannel(channel_origin) => {
+                    sendtxt.push_str(&format!(
+                        "<b>Forwarded Message ID:</b> <code>{}</code>\n<b>Forwarded From Channel ID:</b> <code>{}</code>\n",
+                        channel_origin.message_id, channel_origin.chat.id,
+                    ));
+                }
+                _ => {}
+            }
+        }
+    }
+    let args = &argsctx.args()[1..];
+    if !args.is_empty() {
+        let chatid = args[0].parse::<i64>().unwrap_or_else(|_| 0);
+        if chatid != 0 {
+            if let Ok(chat) = b.get_chat(chatid).send().await {
+                sendtxt.push_str(&format!(
+                    "<b>Chat Name:</b> <code>{}</code>\n<b>Chat Username:</b> <code>@{}</code>\n",
+                    chat.title
+                        .unwrap_or(chat.first_name.unwrap_or("None".to_string())),
+                    chat.username.unwrap_or("None".to_string()),
+                ));
+            }
         }
     }
     msg.reply(&b, &sendtxt)
