@@ -44,7 +44,7 @@ async fn main() {
         }
     });
     println!("Started!");
-    updater.start_polling(false).await.expect("OK");
+    updater.start_polling(false).await.ok();
     println!("Bye!");
 }
 
