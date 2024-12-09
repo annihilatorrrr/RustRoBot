@@ -1,7 +1,7 @@
 [dependencies]
 ferrisgram = "0.2.1"
 async-std = "1.13.0"
-tokio = { version = "1.40.0", features = ["full"] }
+tokio = { version = "1.42.0", features = ["full"] }
 
 [profile.release]
 lto = true
