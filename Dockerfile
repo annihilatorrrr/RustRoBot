@@ -1,9 +1,10 @@
-FROM rust:1.86.0-alpine3.20 as builder
+FROM rust:1.86.0-alpine3.21 as builder
 WORKDIR /RustRoBot
 RUN apk update && apk upgrade --available && sync && apk add --no-cache --virtual .build-deps musl-dev libressl-dev build-base pkgconfig
+RUN apk add --no-cache ca-certificates
 COPY . .
 RUN cargo build --release
-FROM alpine:3.21.3
-RUN apk update && apk upgrade --available && sync
+FROM scratch
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /RustRoBot/target/release/rustrobot /rustrobot
 ENTRYPOINT ["/rustrobot"]
