@@ -1,4 +1,4 @@
-FROM rust:1.86.0-alpine3.21 as builder
+FROM rust:1.87.0-alpine3.21 as builder
 WORKDIR /RustRoBot
 RUN apk update && apk upgrade --available && sync && apk add --no-cache --virtual .build-deps musl-dev libressl-dev build-base pkgconfig
 RUN apk add --no-cache ca-certificates
