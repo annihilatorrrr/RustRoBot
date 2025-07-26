@@ -20,14 +20,11 @@ lazy_static::lazy_static! {
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();
-
     let token = env::var(TOKEN_ENV).expect("Environment variable TOKEN is not set");
-
     let bot = match Bot::new(&token, None).await {
         Ok(bot) => bot,
         Err(error) => panic!("failed to create bot: {}", error),
     };
-
     let dispatcher = &mut Dispatcher::new(&bot);
     dispatcher.add_handler(CommandHandler::new("start", start));
     dispatcher.add_handler(CommandHandler::new("ping", pingh));
@@ -38,13 +35,10 @@ async fn main() {
         chat_join_request::All::filter(),
     ));
     dispatcher.add_handler_to_group(MessageHandler::new(echo, message::All::filter()), 1);
-
     let mut updater = Updater::new(&bot, dispatcher);
     updater.allowed_updates = Some(vec!["message", "chat_join_request"]);
-
     tokio::spawn(async move {
         task::sleep(Duration::from_secs(21600)).await;
-
         let self_executable = match env::current_exe() {
             Ok(path) => path,
             Err(err) => {
@@ -52,19 +46,16 @@ async fn main() {
                 return;
             }
         };
-
         let args: Vec<String> = env::args().collect();
         let status = Command::new(self_executable)
             .args(&args[1..])
             .envs(env::vars())
             .status();
-
         match status {
             Ok(status) => eprintln!("Process exited with non-zero status: {:?}", status),
             Err(err) => eprintln!("Failed to exec the process: {}", err),
         }
     });
-
     println!("Started!");
     updater.start_polling(false).await.ok();
     println!("Bye!");
@@ -74,7 +65,6 @@ async fn start(bot: Bot, ctx: Context) -> Result<GroupIteration> {
     let msg = ctx.effective_message.unwrap();
     let mut link_preview_options = LinkPreviewOptions::new();
     link_preview_options.is_disabled = Some(true);
-
     msg.reply(
         &bot,
         "Hey! I am an echo bot built in love with [Ferrisgram](https://github.com/ferrisgram/ferrisgram). I will just repeat your messages.",
@@ -83,7 +73,6 @@ async fn start(bot: Bot, ctx: Context) -> Result<GroupIteration> {
     .link_preview_options(link_preview_options)
     .send()
     .await?;
-
     Ok(GroupIteration::EndGroups)
 }
 
@@ -100,13 +89,11 @@ async fn sysnchk(bot: Bot, ctx: Context) -> Result<GroupIteration> {
     let msg = ctx.effective_message.unwrap();
     let emsg = msg.reply(&bot, "Sleeping 10s ...").send().await?;
     task::sleep(Duration::from_secs(10)).await;
-
     bot.edit_message_text("Done!".to_string())
         .chat_id(msg.chat.id)
         .message_id(emsg.message_id)
         .send()
         .await?;
-
     Ok(GroupIteration::EndGroups)
 }
 
@@ -121,7 +108,6 @@ async fn pingh(bot: Bot, ctx: Context) -> Result<GroupIteration> {
         .message_id(emsg.message_id)
         .send()
         .await?;
-
     Ok(GroupIteration::EndGroups)
 }
 
@@ -136,8 +122,8 @@ async fn autoapprove(bot: Bot, ctx: Context) -> Result<GroupIteration> {
     Ok(GroupIteration::EndGroups)
 }
 
-pub async fn getchat(bot: &Bot, arg: String) -> (Option<ChatFullInfo>, String) {
-    let mut chat_id = arg.clone();
+pub async fn getchat(bot: &Bot, arg: &str) -> (Option<ChatFullInfo>, String) {
+    let mut chat_id = arg.to_string();
     if chat_id.parse::<i64>().is_err() {
         chat_id = USERNAME_REGEX.replace(&chat_id, "@").into_owned();
         if !chat_id.starts_with('@') {
@@ -159,7 +145,6 @@ async fn getid(bot: Bot, ctx: Context) -> Result<GroupIteration> {
     let argsctx = ctx.clone();
     let msg = ctx.effective_message.unwrap();
     let user = ctx.effective_user.unwrap();
-
     let mut sendtxt = format!(
         "<b>Chat ID:</b> <code>{}</code>\n<b>Message ID:</b> <code>{}</code>\n<b>My ID:</b> <code>{}</code>\n<b>Your ID:</b> <code>{}</code>\n",
         msg.chat.id,
@@ -167,27 +152,23 @@ async fn getid(bot: Bot, ctx: Context) -> Result<GroupIteration> {
         bot.user.id,
         user.id
     );
-
     if let Some(rmsg) = msg.reply_to_message.clone() {
         sendtxt.push_str(&format!(
             "<b>Replied Message ID:</b> <code>{}</code>\n",
             rmsg.message_id
         ));
-
         if let Some(rusr) = rmsg.from.clone() {
             sendtxt.push_str(&format!(
                 "<b>Replied User ID:</b> <code>{}</code>\n",
                 rusr.id
             ));
         }
-
         if let Some(rusc) = rmsg.sender_chat.clone() {
             sendtxt.push_str(&format!(
                 "<b>Replied Chat ID:</b> <code>{}</code>\n",
                 rusc.id
             ));
         }
-
         if let Some(forward_origin) = rmsg.forward_origin.clone() {
             match forward_origin {
                 MessageOrigin::MessageOriginUser(user_origin) => {
@@ -213,11 +194,10 @@ async fn getid(bot: Bot, ctx: Context) -> Result<GroupIteration> {
             }
         }
     }
-
     let args = &argsctx.args()[1..];
     if !args.is_empty() {
         let arg = args[0].to_string();
-        let (chat, _) = getchat(&bot, arg).await;
+        let (chat, _) = getchat(&bot, &arg).await;
         if let Some(chat) = chat {
             sendtxt.push_str(&format!(
                 "<b>{}'s ID:</b> <code>{}</code>\n<b>{}'s Title:</b> <code>{}</code>\n",
@@ -234,11 +214,9 @@ async fn getid(bot: Bot, ctx: Context) -> Result<GroupIteration> {
             sendtxt.push_str("<b>Error:</b> Unable to GetChat!");
         }
     }
-
     msg.reply(&bot, &sendtxt)
         .parse_mode("html".to_string())
         .send()
         .await?;
-
     Ok(GroupIteration::EndGroups)
 }
