@@ -220,7 +220,8 @@ async fn getid(bot: Bot, ctx: Context) -> Result<GroupIteration> {
         let (chat, _) = getchat(&bot, arg).await;
         if let Some(chat) = chat {
             sendtxt.push_str(&format!(
-                "<b>Chat Name:</b> <code>{}</code>\n<b>Chat Username:</b> @{}\n",
+                "<b>Chat ID:</b> <code>{}</code>\n<b>Chat Name:</b> <code>{}</code>\n<b>Chat Username:</b> @{}\n",
+                chat.id,
                 chat.title
                     .unwrap_or(chat.first_name.unwrap_or("None".to_string())),
                 chat.username.unwrap_or("None".to_string()),
@@ -228,8 +229,6 @@ async fn getid(bot: Bot, ctx: Context) -> Result<GroupIteration> {
         } else {
             sendtxt.push_str("<b>Error:</b> Unable to GetChat!");
         }
-    } else {
-        sendtxt.push_str("<b>Error:</b> Please provide chat id or username.");
     }
 
     msg.reply(&bot, &sendtxt)
