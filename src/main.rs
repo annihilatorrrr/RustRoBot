@@ -1,4 +1,3 @@
-use regex::Regex;
 use std::env;
 use std::process::Command;
 use std::time::Duration;
@@ -11,6 +10,7 @@ use ferrisgram::ext::handlers::{ChatJoinRequestHandler, CommandHandler, MessageH
 use ferrisgram::ext::{Context, Dispatcher, Updater};
 use ferrisgram::types::{ChatFullInfo, LinkPreviewOptions, MessageOrigin};
 use ferrisgram::Bot;
+use regex::Regex;
 
 const TOKEN_ENV: &str = "TOKEN";
 lazy_static::lazy_static! {
@@ -220,12 +220,16 @@ async fn getid(bot: Bot, ctx: Context) -> Result<GroupIteration> {
         let (chat, _) = getchat(&bot, arg).await;
         if let Some(chat) = chat {
             sendtxt.push_str(&format!(
-                "<b>Chat ID:</b> <code>{}</code>\n<b>Chat Name:</b> <code>{}</code>\n<b>Chat Username:</b> @{}\n",
+                "<b>{}'s ID:</b> <code>{}</code>\n<b>{}'s Title:</b> <code>{}</code>\n",
+                arg,
                 chat.id,
+                arg,
                 chat.title
                     .unwrap_or(chat.first_name.unwrap_or("None".to_string())),
-                chat.username.unwrap_or("None".to_string()),
             ));
+            if let Some(username) = chat.username {
+                sendtxt.push_str(&format!("<b>{}'s Username:</b> @{}\n", arg, username));
+            }
         } else {
             sendtxt.push_str("<b>Error:</b> Unable to GetChat!");
         }
