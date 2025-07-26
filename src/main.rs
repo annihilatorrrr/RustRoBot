@@ -140,8 +140,8 @@ pub async fn getchat(bot: &Bot, arg: String) -> (Option<ChatFullInfo>, String) {
     let mut chat_id = arg.clone();
     if chat_id.parse::<i64>().is_err() {
         chat_id = USERNAME_REGEX.replace(&chat_id, "@").into_owned();
-        if !chat_id.starts_with("@") {
-            chat_id = format!("@{}", chat_id);
+        if !chat_id.starts_with('@') {
+            chat_id.insert(0, '@');
         }
     }
     let payload = serde_json::json!({ "chat_id": chat_id });
