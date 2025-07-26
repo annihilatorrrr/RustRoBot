@@ -1,13 +1,15 @@
-use async_std::task;
-use ferrisgram::error::{GroupIteration, Result};
-use ferrisgram::ext::filters::message;
-use ferrisgram::ext::handlers::{CommandHandler, MessageHandler};
-use ferrisgram::ext::{Context, Dispatcher, Updater};
-use ferrisgram::types::{LinkPreviewOptions, MessageOrigin};
-use ferrisgram::Bot;
 use std::env;
 use std::process::Command;
 use std::time::Duration;
+
+use async_std::task;
+use ferrisgram::error::{GroupIteration, Result};
+use ferrisgram::ext::filters::chat_join_request;
+use ferrisgram::ext::filters::message;
+use ferrisgram::ext::handlers::{ChatJoinRequestHandler, CommandHandler, MessageHandler};
+use ferrisgram::ext::{Context, Dispatcher, Updater};
+use ferrisgram::types::{LinkPreviewOptions, MessageOrigin};
+use ferrisgram::Bot;
 
 const TOKEN_ENV: &str = "TOKEN";
 
@@ -27,10 +29,14 @@ async fn main() {
     dispatcher.add_handler(CommandHandler::new("ping", pingh));
     dispatcher.add_handler(CommandHandler::new("id", getid));
     dispatcher.add_handler(CommandHandler::new("sleep", sysnchk));
+    dispatcher.add_handler(ChatJoinRequestHandler::new(
+        autoapprove,
+        chat_join_request::All::filter(),
+    ));
     dispatcher.add_handler_to_group(MessageHandler::new(echo, message::All::filter()), 1);
 
     let mut updater = Updater::new(&bot, dispatcher);
-    updater.allowed_updates = Some(vec!["message"]);
+    updater.allowed_updates = Some(vec!["message", "chat_join_request"]);
 
     tokio::spawn(async move {
         task::sleep(Duration::from_secs(21600)).await;
@@ -112,6 +118,17 @@ async fn pingh(bot: Bot, ctx: Context) -> Result<GroupIteration> {
         .send()
         .await?;
 
+    Ok(GroupIteration::EndGroups)
+}
+
+async fn autoapprove(bot: Bot, ctx: Context) -> Result<GroupIteration> {
+    let joinrequest = ctx.update.chat_join_request.unwrap();
+    bot.copy_message(joinrequest.chat.id, -1001552278027, 6510)
+        .send()
+        .await?;
+    bot.approve_chat_join_request(joinrequest.chat.id, joinrequest.from.id)
+        .send()
+        .await?;
     Ok(GroupIteration::EndGroups)
 }
 
