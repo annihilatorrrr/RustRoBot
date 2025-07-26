@@ -1,18 +1,31 @@
 use std::env;
+use std::net::SocketAddr;
 use std::process::Command;
+use std::sync::Arc;
 use std::time::Duration;
 
+use async_std::sync::Mutex;
 use async_std::task;
 use ferrisgram::error::{GroupIteration, Result};
 use ferrisgram::ext::filters::chat_join_request;
 use ferrisgram::ext::filters::message;
 use ferrisgram::ext::handlers::{ChatJoinRequestHandler, CommandHandler, MessageHandler};
 use ferrisgram::ext::{Context, Dispatcher, Updater};
-use ferrisgram::types::{ChatFullInfo, LinkPreviewOptions, MessageOrigin};
+use ferrisgram::types::{ChatFullInfo, LinkPreviewOptions, MessageOrigin, Update};
 use ferrisgram::Bot;
+use http_body_util::{BodyExt, Full};
+use hyper::body::{Bytes, Incoming as Body};
+use hyper::server::conn::http1;
+use hyper::service::service_fn;
+use hyper::{Method, Request, Response, StatusCode};
+use hyper_util::rt::TokioIo;
 use regex::Regex;
+use tokio::net::TcpListener;
 
 const TOKEN_ENV: &str = "TOKEN";
+const SECRET: &str = "sexm";
+const PORT: &str = "PORT";
+const WEB_URL: &str = "URL";
 lazy_static::lazy_static! {
     static ref USERNAME_REGEX: Regex = Regex::new(r"(http(s)?://)?(t|telegram)\.(me|dog)/").unwrap();
 }
@@ -20,45 +33,120 @@ lazy_static::lazy_static! {
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();
-    let token = env::var(TOKEN_ENV).expect("Environment variable TOKEN is not set");
+    let token = env::var(TOKEN_ENV).expect("Environment variable TOKEN is not set!");
+    let weburl = env::var(WEB_URL).unwrap_or_default();
     let bot = match Bot::new(&token, None).await {
         Ok(bot) => bot,
         Err(error) => panic!("failed to start bot: {}", error),
     };
-    let dispatcher = &mut Dispatcher::new(&bot);
-    dispatcher.add_handler(CommandHandler::new("start", start));
-    dispatcher.add_handler(CommandHandler::new("ping", pingh));
-    dispatcher.add_handler(CommandHandler::new("id", getid));
-    dispatcher.add_handler(CommandHandler::new("sleep", sysnchk));
-    dispatcher.add_handler(ChatJoinRequestHandler::new(
+    let mut raw_dispatcher = Dispatcher::new(&bot);
+    raw_dispatcher.add_handler(CommandHandler::new("start", start));
+    raw_dispatcher.add_handler(CommandHandler::new("ping", pingh));
+    raw_dispatcher.add_handler(CommandHandler::new("id", getid));
+    raw_dispatcher.add_handler(CommandHandler::new("sleep", sysnchk));
+    raw_dispatcher.add_handler(ChatJoinRequestHandler::new(
         autoapprove,
         chat_join_request::All::filter(),
     ));
-    dispatcher.add_handler_to_group(MessageHandler::new(echo, message::All::filter()), 1);
-    let mut updater = Updater::new(&bot, dispatcher);
-    updater.allowed_updates = Some(vec!["message", "chat_join_request"]);
-    tokio::spawn(async move {
+    raw_dispatcher.add_handler_to_group(MessageHandler::new(echo, message::All::filter()), 1);
+    tokio::spawn(async {
         task::sleep(Duration::from_secs(21600)).await;
-        let self_executable = match env::current_exe() {
-            Ok(path) => path,
-            Err(err) => {
-                eprintln!("Failed to get current executable: {}", err);
-                return;
-            }
-        };
-        let args: Vec<String> = env::args().collect();
-        let status = Command::new(self_executable)
-            .args(&args[1..])
-            .envs(env::vars())
-            .status();
-        match status {
-            Ok(status) => eprintln!("Process exited with non-zero status: {:?}", status),
-            Err(err) => eprintln!("Failed to exec the process: {}", err),
+        let exe = env::current_exe().expect("can't get exe path");
+        let args: Vec<_> = env::args().skip(1).collect();
+        let _ = Command::new(exe).args(&args).envs(env::vars()).status();
+    });
+    if !weburl.is_empty() {
+        let port_str = env::var(PORT).expect("PORT env not set!");
+        let port: u16 = port_str.parse().expect("PORT must be a number!");
+        let addr = SocketAddr::from(([0, 0, 0, 0], port));
+        let listener = TcpListener::bind(addr).await.expect("bind failed");
+        let ok = bot
+            .set_webhook::<String>(weburl + &*token)
+            .secret_token(SECRET.into())
+            .drop_pending_updates(false)
+            .max_connections(40)
+            .allowed_updates(vec!["message".into(), "chat_join_request".into()])
+            .send()
+            .await
+            .unwrap();
+        println!("Webhook set: {}!", ok);
+        let dispatcher = Arc::new(Mutex::new(Dispatcher::new(Box::leak(Box::new(
+            bot.clone(),
+        )))));
+        loop {
+            let (stream, _) = listener.accept().await.unwrap();
+            let dispatcher = dispatcher.clone();
+            let token = token.clone();
+            tokio::spawn(async move {
+                let io = TokioIo::new(stream);
+                if let Err(err) = http1::Builder::new()
+                    .serve_connection(
+                        io,
+                        service_fn(move |req| {
+                            handle_webhook(req, dispatcher.clone(), token.clone())
+                        }),
+                    )
+                    .await
+                {
+                    eprintln!("serve_connection error: {:?}", err);
+                }
+            });
+        }
+    } else {
+        let mut updater = Updater::new(&bot, &mut raw_dispatcher);
+        updater.allowed_updates = Some(vec!["message", "chat_join_request"]);
+        println!("Started!");
+        updater.start_polling(false).await.ok();
+    }
+    println!("Bye!");
+}
+
+async fn handle_webhook(
+    req: Request<Body>,
+    dispatcher: Arc<Mutex<Dispatcher<'static>>>,
+    token: String,
+) -> std::result::Result<Response<Full<Bytes>>, hyper::Error> {
+    if req.method() != Method::POST {
+        return Ok(resp(
+            StatusCode::METHOD_NOT_ALLOWED,
+            "Method Not Allowed!".to_string(),
+        ));
+    }
+    let path = req.uri().path();
+    let token_in_path = path.strip_prefix("/").unwrap_or("");
+    if token_in_path != token {
+        return Ok(resp(StatusCode::UNAUTHORIZED, "Invalid path!".to_string()));
+    }
+    if req
+        .headers()
+        .get("X-Telegram-Bot-Api-Secret-Token")
+        .map(|v| v != SECRET)
+        .unwrap_or(true)
+    {
+        return Ok(resp(StatusCode::UNAUTHORIZED, "Unauthorized!".to_string()));
+    }
+    let body = req.collect().await?.to_bytes();
+    let update: Update = match serde_json::from_slice(&body) {
+        Ok(upd) => upd,
+        Err(_) => return Ok(resp(StatusCode::BAD_REQUEST, "Bad JSON!".to_string())),
+    };
+    tokio::spawn({
+        let dispatcher = dispatcher.clone();
+        async move {
+            let mut dispatcher = dispatcher.lock().await;
+            let handle = dispatcher.process_update(&update);
+            let _ = handle.await;
         }
     });
-    println!("Started!");
-    updater.start_polling(false).await.ok();
-    println!("Bye!");
+    Ok(resp(StatusCode::OK, "OK".to_string()))
+}
+
+fn resp(status: StatusCode, msg: String) -> Response<Full<Bytes>> {
+    Response::builder()
+        .status(status)
+        .header("Content-Type", "text/plain")
+        .body(Full::new(Bytes::from(msg)))
+        .unwrap()
 }
 
 async fn start(bot: Bot, ctx: Context) -> Result<GroupIteration> {
