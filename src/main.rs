@@ -1,3 +1,4 @@
+use regex::Regex;
 use std::env;
 use std::process::Command;
 use std::time::Duration;
@@ -8,10 +9,13 @@ use ferrisgram::ext::filters::chat_join_request;
 use ferrisgram::ext::filters::message;
 use ferrisgram::ext::handlers::{ChatJoinRequestHandler, CommandHandler, MessageHandler};
 use ferrisgram::ext::{Context, Dispatcher, Updater};
-use ferrisgram::types::{LinkPreviewOptions, MessageOrigin};
+use ferrisgram::types::{ChatFullInfo, LinkPreviewOptions, MessageOrigin};
 use ferrisgram::Bot;
 
 const TOKEN_ENV: &str = "TOKEN";
+lazy_static::lazy_static! {
+    static ref USERNAME_REGEX: Regex = Regex::new(r"(http(s)?://)?(t|telegram)\.(me|dog)/").unwrap();
+}
 
 #[tokio::main]
 async fn main() {
@@ -132,6 +136,25 @@ async fn autoapprove(bot: Bot, ctx: Context) -> Result<GroupIteration> {
     Ok(GroupIteration::EndGroups)
 }
 
+pub async fn getchat(bot: &Bot, arg: String) -> (Option<ChatFullInfo>, String) {
+    let mut chat_id = arg.clone();
+    if chat_id.parse::<i64>().is_err() {
+        chat_id = USERNAME_REGEX.replace(&chat_id, "@").into_owned();
+        if !chat_id.starts_with("@") {
+            chat_id = format!("@{}", chat_id);
+        }
+    }
+    let payload = serde_json::json!({ "chat_id": chat_id });
+    let res = bot.get("getChat", Some(&payload)).await;
+    match res {
+        Ok(chat) => match serde_json::from_value::<ChatFullInfo>(chat) {
+            Ok(parsed_chat) => (Some(parsed_chat), "".to_string()),
+            Err(_) => (None, "BadRequest chat not found!".to_string()),
+        },
+        Err(_) => (None, "BadRequest unable to make the Request!".to_string()),
+    }
+}
+
 async fn getid(bot: Bot, ctx: Context) -> Result<GroupIteration> {
     let argsctx = ctx.clone();
     let msg = ctx.effective_message.unwrap();
@@ -193,18 +216,20 @@ async fn getid(bot: Bot, ctx: Context) -> Result<GroupIteration> {
 
     let args = &argsctx.args()[1..];
     if !args.is_empty() {
-        if let Ok(chatid) = args[0].parse::<i64>() {
-            if chatid != 0 {
-                if let Ok(chat) = bot.get_chat(chatid).send().await {
-                    sendtxt.push_str(&format!(
-                        "<b>Chat Name:</b> <code>{}</code>\n<b>Chat Username:</b> @{}\n",
-                        chat.title
-                            .unwrap_or(chat.first_name.unwrap_or("None".to_string())),
-                        chat.username.unwrap_or("None".to_string()),
-                    ));
-                }
-            }
+        let arg = args[0].to_string();
+        let (chat, _) = getchat(&bot, arg).await;
+        if let Some(chat) = chat {
+            sendtxt.push_str(&format!(
+                "<b>Chat Name:</b> <code>{}</code>\n<b>Chat Username:</b> @{}\n",
+                chat.title
+                    .unwrap_or(chat.first_name.unwrap_or("None".to_string())),
+                chat.username.unwrap_or("None".to_string()),
+            ));
+        } else {
+            sendtxt.push_str("<b>Error:</b> Unable to GetChat!");
         }
+    } else {
+        sendtxt.push_str("<b>Error:</b> Please provide chat id or username.");
     }
 
     msg.reply(&bot, &sendtxt)
