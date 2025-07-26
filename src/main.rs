@@ -9,9 +9,13 @@ use std::env;
 use std::process::Command;
 use std::time::Duration;
 
+const TOKEN_ENV: &str = "TOKEN";
+
 #[tokio::main]
 async fn main() {
-    let token = env::var("TOKEN").unwrap_or_else(|_| "TOMKEN".to_string());
+    dotenv::dotenv().ok();
+
+    let token = env::var(TOKEN_ENV).expect("Environment variable TOKEN is not set");
 
     let bot = match Bot::new(&token, None).await {
         Ok(bot) => bot,
