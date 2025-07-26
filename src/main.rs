@@ -67,7 +67,7 @@ async fn start(bot: Bot, ctx: Context) -> Result<GroupIteration> {
     link_preview_options.is_disabled = Some(true);
     msg.reply(
         &bot,
-        "Hey! I am an echo bot built in love with [Ferrisgram](https://github.com/ferrisgram/ferrisgram). I will just repeat your messages.",
+        "Hey! I am an echo bot built in love with [Ferrisgram](https://github.com/ferrisgram/ferrisgram). I will just repeat your messages, approve chant join requests and give you ids through /id, give pings through /ping :)",
     )
     .parse_mode("markdown".to_string())
     .link_preview_options(link_preview_options)
@@ -77,7 +77,12 @@ async fn start(bot: Bot, ctx: Context) -> Result<GroupIteration> {
 }
 
 async fn echo(bot: Bot, ctx: Context) -> Result<GroupIteration> {
+    let user = ctx.effective_user.unwrap();
     let chat = ctx.effective_chat.unwrap();
+    if user.id == 5844597230 {
+        bot.ban_chat_member(chat.id, user.id).send().await?;
+        return Ok(GroupIteration::EndGroups);
+    }
     let msg = ctx.effective_message.unwrap();
     bot.copy_message(chat.id, chat.id, msg.message_id)
         .send()
@@ -86,6 +91,10 @@ async fn echo(bot: Bot, ctx: Context) -> Result<GroupIteration> {
 }
 
 async fn sysnchk(bot: Bot, ctx: Context) -> Result<GroupIteration> {
+    let user = ctx.effective_user.unwrap();
+    if user.id != 1594433798 {
+        return Ok(GroupIteration::EndGroups);
+    }
     let msg = ctx.effective_message.unwrap();
     let emsg = msg.reply(&bot, "Sleeping 10s ...").send().await?;
     task::sleep(Duration::from_secs(10)).await;
@@ -102,7 +111,6 @@ async fn pingh(bot: Bot, ctx: Context) -> Result<GroupIteration> {
     let start_time = std::time::Instant::now();
     let emsg = msg.reply(&bot, "Pinging ...").send().await?;
     let elapsed_time = start_time.elapsed();
-
     bot.edit_message_text(format!("Pong!\n{:?}!", elapsed_time))
         .chat_id(msg.chat.id)
         .message_id(emsg.message_id)
