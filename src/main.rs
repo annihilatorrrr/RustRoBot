@@ -23,7 +23,7 @@ async fn main() {
     let token = env::var(TOKEN_ENV).expect("Environment variable TOKEN is not set");
     let bot = match Bot::new(&token, None).await {
         Ok(bot) => bot,
-        Err(error) => panic!("failed to create bot: {}", error),
+        Err(error) => panic!("failed to start bot: {}", error),
     };
     let dispatcher = &mut Dispatcher::new(&bot);
     dispatcher.add_handler(CommandHandler::new("start", start));
