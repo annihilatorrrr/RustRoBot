@@ -137,7 +137,6 @@ async fn handle_webhook(
 }
 
 fn resp(status: StatusCode, msg: &'static [u8]) -> Response<Full<Bytes>> {
-    println!("{}", String::from_utf8_lossy(msg));
     Response::builder()
         .status(status)
         .header("Content-Type", "text/plain")
