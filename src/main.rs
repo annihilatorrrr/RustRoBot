@@ -63,6 +63,7 @@ async fn main() {
             let token = token.clone();
             let io = TokioIo::new(stream);
             if let Err(err) = http1::Builder::new()
+                .keep_alive(false)
                 .serve_connection(
                     io,
                     service_fn(move |req| handle_webhook(req, dispatcher.clone(), token.clone())),
