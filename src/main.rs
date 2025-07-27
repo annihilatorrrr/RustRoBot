@@ -1,4 +1,5 @@
 use std::env;
+use std::process::{exit, Command};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -89,7 +90,7 @@ fn setup_dispatcher(bot: &'static Bot) -> Dispatcher<'static> {
     dispatcher.add_handler(CommandHandler::new("ping", pingh));
     dispatcher.add_handler(CommandHandler::new("id", getid));
     dispatcher.add_handler(CommandHandler::new("sleep", sysnchk));
-    dispatcher.add_handler(CommandHandler::new("restart", restarthand));
+    dispatcher.add_handler(CommandHandler::new("restart", restart));
     dispatcher.add_handler(ChatJoinRequestHandler::new(
         autoapprove,
         chat_join_request::All::filter(),
@@ -142,13 +143,6 @@ fn resp(status: StatusCode, msg: &'static [u8]) -> Response<Full<Bytes>> {
         .unwrap()
 }
 
-async fn dorestart(sleepdo: bool) {
-    if sleepdo {
-        task::sleep(Duration::from_secs(21600)).await;
-    }
-    println!("Uff!")
-}
-
 async fn start(bot: Bot, ctx: Context) -> Result<GroupIteration> {
     let msg = ctx.effective_message.unwrap();
     let mut link_preview_options = LinkPreviewOptions::new();
@@ -178,14 +172,23 @@ async fn echo(bot: Bot, ctx: Context) -> Result<GroupIteration> {
     Ok(GroupIteration::EndGroups)
 }
 
-async fn restarthand(bot: Bot, ctx: Context) -> Result<GroupIteration> {
-    let user = ctx.effective_user.unwrap();
-    if user.id != 1594433798 {
-        return Ok(GroupIteration::EndGroups);
-    }
+async fn restart(bot: Bot, ctx: Context) -> Result<GroupIteration> {
     let msg = ctx.effective_message.unwrap();
-    msg.reply(&bot, "Restarting ...").send().await?;
-    dorestart(false).await;
+
+    msg.reply(&bot, "Restarting the bot...").send().await?;
+
+    if let Ok(exec_path) = env::current_exe() {
+        let _ = Command::new(exec_path)
+            .spawn()
+            .expect("Failed to restart the bot...");
+
+        exit(0)
+    } else {
+        msg.reply(&bot, "Failed to get the executable path")
+            .send()
+            .await?;
+    }
+
     Ok(GroupIteration::EndGroups)
 }
 
