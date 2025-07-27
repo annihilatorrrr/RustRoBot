@@ -1,6 +1,6 @@
 use std::env;
+use std::ffi::{CStr, CString};
 use std::net::SocketAddr;
-use std::process::Command;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -14,16 +14,17 @@ use ferrisgram::types::{ChatFullInfo, LinkPreviewOptions, MessageOrigin, Update}
 use ferrisgram::Bot;
 use http_body_util::{BodyExt, Full};
 use hyper::body::{Bytes, Incoming as Body};
-use hyper::server::conn::http1;
+use hyper::server::conn::http2;
 use hyper::service::service_fn;
 use hyper::{Method, Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
+use nix::unistd::execv;
 use regex::Regex;
 use tokio::net::TcpListener;
 
 const TOKEN_ENV: &str = "TOKEN";
 const SECRET: &str = "sexm";
-const PORT: &str = "PORT";
+const PORT: &str = "9088";
 const WEB_URL: &str = "URL";
 
 lazy_static::lazy_static! {
@@ -34,20 +35,17 @@ lazy_static::lazy_static! {
 async fn main() {
     dotenv::dotenv().ok();
     let token = Arc::new(env::var(TOKEN_ENV).expect("TOKEN env not set!"));
-    let real_bot = Bot::new(&token, None).await.expect("failed to init bot");
+    let real_bot = Bot::new(&token, None).await.expect("failed to init bot!");
     let bot: &'static Bot = Box::leak(Box::new(real_bot));
     tokio::spawn(async {
-        task::sleep(Duration::from_secs(21600)).await;
-        let exe = env::current_exe().unwrap();
-        let args: Vec<_> = env::args().skip(1).collect();
-        let _ = Command::new(exe).args(&args).envs(env::vars()).status();
+        dorestart(true).await;
     });
     let weburl = env::var(WEB_URL).unwrap_or_default();
     if !weburl.is_empty() {
         let port = env::var(PORT)
-            .unwrap_or_else(|_| "8080".into())
+            .unwrap_or_else(|_| "9088".into())
             .parse::<u16>()
-            .expect("PORT must be a number");
+            .expect("PORT must be a number!");
         let addr = SocketAddr::from(([0, 0, 0, 0], port));
         let listener = TcpListener::bind(addr).await.expect("bind failed!");
         let ok = bot
@@ -66,14 +64,14 @@ async fn main() {
             let dispatcher = webhook_dispatcher.clone();
             let token = token.clone();
             let io = TokioIo::new(stream);
-            if let Err(err) = http1::Builder::new()
+            if let Err(err) = http2::Builder::new(tokio::runtime::Handle::current())
                 .serve_connection(
                     io,
                     service_fn(move |req| handle_webhook(req, dispatcher.clone(), token.clone())),
                 )
                 .await
             {
-                eprintln!("serve_connection error: {err:?}");
+                eprintln!("Server Error: {err}");
             }
         }
     } else {
@@ -92,6 +90,7 @@ fn setup_dispatcher(bot: &'static Bot) -> Dispatcher<'static> {
     dispatcher.add_handler(CommandHandler::new("ping", pingh));
     dispatcher.add_handler(CommandHandler::new("id", getid));
     dispatcher.add_handler(CommandHandler::new("sleep", sysnchk));
+    dispatcher.add_handler(CommandHandler::new("restart", restarthand));
     dispatcher.add_handler(ChatJoinRequestHandler::new(
         autoapprove,
         chat_join_request::All::filter(),
@@ -144,6 +143,21 @@ fn resp(status: StatusCode, msg: &'static [u8]) -> Response<Full<Bytes>> {
         .unwrap()
 }
 
+async fn dorestart(sleepdo: bool) {
+    if sleepdo {
+        task::sleep(Duration::from_secs(21600)).await;
+    }
+    let exe = env::current_exe().unwrap();
+    let args: Vec<String> = env::args().collect();
+    let c_exe = CString::new(exe.as_os_str().as_bytes()).unwrap();
+    let c_args: Vec<CString> = args
+        .iter()
+        .map(|s| CString::new(s.as_bytes()).unwrap())
+        .collect();
+    let c_args_refs: Vec<&CStr> = c_args.iter().map(|s| s.as_c_str()).collect();
+    execv(&c_exe, &c_args_refs).unwrap();
+}
+
 async fn start(bot: Bot, ctx: Context) -> Result<GroupIteration> {
     let msg = ctx.effective_message.unwrap();
     let mut link_preview_options = LinkPreviewOptions::new();
@@ -170,6 +184,17 @@ async fn echo(bot: Bot, ctx: Context) -> Result<GroupIteration> {
     bot.copy_message(chat.id, chat.id, msg.message_id)
         .send()
         .await?;
+    Ok(GroupIteration::EndGroups)
+}
+
+async fn restarthand(bot: Bot, ctx: Context) -> Result<GroupIteration> {
+    let user = ctx.effective_user.unwrap();
+    if user.id != 1594433798 {
+        return Ok(GroupIteration::EndGroups);
+    }
+    let msg = ctx.effective_message.unwrap();
+    msg.reply(&bot, "Restarting ...").send().await?;
+    dorestart(false).await;
     Ok(GroupIteration::EndGroups)
 }
 
