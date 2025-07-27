@@ -1,6 +1,5 @@
 use std::env;
 use std::net::SocketAddr;
-use std::process::Command;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -146,10 +145,7 @@ async fn dorestart(sleepdo: bool) {
     if sleepdo {
         task::sleep(Duration::from_secs(21600)).await;
     }
-    let exe = env::current_exe().unwrap();
-    let args: Vec<_> = env::args().skip(1).collect();
-    let _ = Command::new(exe).args(&args).envs(env::vars()).spawn();
-    std::process::exit(0);
+    println!("Uff!")
 }
 
 async fn start(bot: Bot, ctx: Context) -> Result<GroupIteration> {
