@@ -173,6 +173,12 @@ async fn echo(bot: Bot, ctx: Context) -> Result<GroupIteration> {
 }
 
 async fn restart(bot: Bot, ctx: Context) -> Result<GroupIteration> {
+    let user = ctx.effective_user.unwrap();
+    
+    if user.id != 1594433798 {
+        return Ok(GroupIteration::EndGroups);
+    }
+    
     let msg = ctx.effective_message.unwrap();
 
     msg.reply(&bot, "Restarting the bot...").send().await?;
