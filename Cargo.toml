@@ -10,7 +10,6 @@ hyper = { version = "1.5.1", features = ["full", "server"] }
 serde = { version = "1.0.216", features = ["derive"] }
 http-body-util = "0.1.2"
 hyper-util = { version = "0.1.10", features = ["tokio"] }
-nix = "0.29.0"
 
 [profile.release]
 lto = true

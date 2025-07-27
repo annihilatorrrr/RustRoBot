@@ -1,6 +1,6 @@
 use std::env;
-use std::ffi::{CStr, CString};
 use std::net::SocketAddr;
+use std::process::Command;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -14,17 +14,16 @@ use ferrisgram::types::{ChatFullInfo, LinkPreviewOptions, MessageOrigin, Update}
 use ferrisgram::Bot;
 use http_body_util::{BodyExt, Full};
 use hyper::body::{Bytes, Incoming as Body};
-use hyper::server::conn::http2;
+use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper::{Method, Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
-use nix::unistd::execv;
 use regex::Regex;
 use tokio::net::TcpListener;
 
 const TOKEN_ENV: &str = "TOKEN";
 const SECRET: &str = "sexm";
-const PORT: &str = "9088";
+const PORT: &str = "9100";
 const WEB_URL: &str = "URL";
 
 lazy_static::lazy_static! {
@@ -35,7 +34,7 @@ lazy_static::lazy_static! {
 async fn main() {
     dotenv::dotenv().ok();
     let token = Arc::new(env::var(TOKEN_ENV).expect("TOKEN env not set!"));
-    let real_bot = Bot::new(&token, None).await.expect("failed to init bot!");
+    let real_bot = Bot::new(&token, None).await.expect("failed to init bot");
     let bot: &'static Bot = Box::leak(Box::new(real_bot));
     tokio::spawn(async {
         dorestart(true).await;
@@ -43,7 +42,7 @@ async fn main() {
     let weburl = env::var(WEB_URL).unwrap_or_default();
     if !weburl.is_empty() {
         let port = env::var(PORT)
-            .unwrap_or_else(|_| "9088".into())
+            .unwrap_or_else(|_| "9100".into())
             .parse::<u16>()
             .expect("PORT must be a number!");
         let addr = SocketAddr::from(([0, 0, 0, 0], port));
@@ -64,7 +63,7 @@ async fn main() {
             let dispatcher = webhook_dispatcher.clone();
             let token = token.clone();
             let io = TokioIo::new(stream);
-            if let Err(err) = http2::Builder::new(tokio::runtime::Handle::current())
+            if let Err(err) = http1::Builder::new()
                 .serve_connection(
                     io,
                     service_fn(move |req| handle_webhook(req, dispatcher.clone(), token.clone())),
@@ -148,14 +147,9 @@ async fn dorestart(sleepdo: bool) {
         task::sleep(Duration::from_secs(21600)).await;
     }
     let exe = env::current_exe().unwrap();
-    let args: Vec<String> = env::args().collect();
-    let c_exe = CString::new(exe.as_os_str().as_bytes()).unwrap();
-    let c_args: Vec<CString> = args
-        .iter()
-        .map(|s| CString::new(s.as_bytes()).unwrap())
-        .collect();
-    let c_args_refs: Vec<&CStr> = c_args.iter().map(|s| s.as_c_str()).collect();
-    execv(&c_exe, &c_args_refs).unwrap();
+    let args: Vec<_> = env::args().skip(1).collect();
+    let _ = Command::new(exe).args(&args).envs(env::vars()).spawn();
+    std::process::exit(0);
 }
 
 async fn start(bot: Bot, ctx: Context) -> Result<GroupIteration> {
